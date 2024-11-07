@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/button";
 import { Card, CardContent } from "@/components/card";
 
@@ -9,31 +9,38 @@ import { Users } from "lucide-react";
 import { Input } from "@/components/input";
 import { Label } from "@/components/label";
 import ThemeButton from "@/components/theme-button";
+import { useRoom } from "@/hooks/useRoom";
+import { useRouter } from "next/navigation";
+import { useDarkMode } from "@/hooks/useDarkMode";
 
-export default function VoiceTranslationChatWithRoom() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+export default function JoinRoomScreen() {
   const [userName, setUserName] = useState("");
   const [roomName, setRoomName] = useState("");
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
+  const { createOrJoinRoom } = useRoom();
+  const router = useRouter();
 
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.toggle("dark", isDarkMode);
-  }, [isDarkMode]);
-
-  const handleJoinRoom = () => {
-    if (userName.trim() && roomName.trim()) {
-      
+  const handleJoinRoom = async () => {
+    try {
+      if (userName.trim() && roomName.trim()) {
+        await createOrJoinRoom(userName, roomName);
+        router.push(`/room/${roomName}`);
+      }
+    } catch (error) {
+      console.log("Error joining room", error);
     }
   };
 
   return (
-    <div className={`${isDarkMode ? "dark" : ""} flex flex-col  min-h-screen  bg-gray-100 dark:bg-gray-900`}>
+    <div
+      className={`${
+        isDarkMode ? "dark" : ""
+      } flex flex-col  min-h-screen  bg-gray-100 dark:bg-gray-900`}
+    >
       <div className=" p-5 self-end">
-        <ThemeButton isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <ThemeButton isDarkMode={isDarkMode} setIsDarkMode={toggleDarkMode} />
       </div>
-      <div
-        className={`flex-1 flex items-center justify-center`}
-      >
+      <div className={`flex-1 flex items-center justify-center`}>
         <Card className="w-[350px]">
           <CardContent className="pt-6">
             <h1 className="text-2xl font-bold text-center mb-6">TranslateAI</h1>

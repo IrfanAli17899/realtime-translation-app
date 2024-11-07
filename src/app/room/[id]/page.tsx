@@ -6,8 +6,6 @@ export interface RoomPageProps {
 }
 
 export default async function RoomPage({ params }: RoomPageProps) {
-    const { id } = await params;
-    console.log(id);
-    
-  return <RoomScreen />;
+  const { id } = await params;
+  return <RoomScreen roomId={id} />;
 }

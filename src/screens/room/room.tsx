@@ -17,31 +17,51 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/tooltip";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/avatar";
+import { Avatar, AvatarFallback } from "@/components/avatar";
 import ThemeButton from "@/components/theme-button";
+import { Message } from "@/types";
+import { useDarkMode } from "@/hooks/useDarkMode";
+import { useRoom } from "@/hooks/useRoom";
 
-type Message = {
-  id: number;
-  text: string;
-  translated: string;
-  fromLang: string;
-  toLang: string;
-  isUser: boolean;
-};
+export interface RoomScreenProps {
+  roomId: string;
+}
 
-export default function RoomScreen() {
+export default function RoomScreen({ roomId }: RoomScreenProps) {
   const [isListening, setIsListening] = useState(false);
   const [inputText, setInputText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [, setParticipants] = useState<string[]>([]);
   const [fromLang, setFromLang] = useState("en");
   const [toLang, setToLang] = useState("es");
-  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
+  const {
+    getMessages,
+    onMessageAdd,
+    sendMessage,
+    getParticipants,
+    onParticipantAdd,
+  } = useRoom();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.toggle("dark", isDarkMode);
-  }, [isDarkMode]);
+    if (roomId) {
+      getMessages(roomId, (messages) => {
+        setMessages(messages);
+      });
+      onMessageAdd(roomId, (message) => {
+        setMessages((prv) => [...prv, message]);
+      });
+      getParticipants(roomId, (participants) => {
+        setParticipants(participants);
+      });
+      onParticipantAdd(roomId, (participant) => {
+        setParticipants((prv) => [...prv, participant]);
+      });
+    }
+  }, [roomId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,21 +81,8 @@ export default function RoomScreen() {
         toLang,
         isUser: true,
       };
-      setMessages([...messages, newMessage]);
+      sendMessage(roomId, newMessage);
       setInputText("");
-
-      // Simulate AI response
-      setTimeout(() => {
-        const aiMessage: Message = {
-          id: Date.now() + 1,
-          text: "Estoy bien, gracias. ¿Y tú?",
-          translated: "I'm fine, thank you. And you?",
-          fromLang: toLang,
-          toLang: fromLang,
-          isUser: false,
-        };
-        setMessages((prev) => [...prev, aiMessage]);
-      }, 1000);
     }
   };
 
@@ -111,7 +118,7 @@ export default function RoomScreen() {
             </Select>
             <ThemeButton
               isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
+              setIsDarkMode={toggleDarkMode}
             />
           </div>
         </div>
@@ -127,10 +134,6 @@ export default function RoomScreen() {
             >
               {!message.isUser && (
                 <Avatar className="mr-2">
-                  <AvatarImage
-                    src="/placeholder.svg?height=40&width=40"
-                    alt="AI"
-                  />
                   <AvatarFallback>AI</AvatarFallback>
                 </Avatar>
               )}
@@ -151,10 +154,6 @@ export default function RoomScreen() {
               </Card>
               {message.isUser && (
                 <Avatar className="ml-2">
-                  <AvatarImage
-                    src="/placeholder.svg?height=40&width=40"
-                    alt="User"
-                  />
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>
               )}
@@ -187,6 +186,11 @@ export default function RoomScreen() {
           <input
             type="text"
             value={inputText}
+            onKeyUp={(e) => {
+              if (e.key === "Enter") {
+                handleSend();
+              }
+            }}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Speak or type your message"
             className="flex-1 p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
