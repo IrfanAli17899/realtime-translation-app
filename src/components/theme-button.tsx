@@ -10,7 +10,7 @@ import { Moon, Sun } from "lucide-react";
 
 export interface ThemeButtonProps {
     isDarkMode: boolean;
-    setIsDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
+    setIsDarkMode: (isDarkMode: boolean) => void;
 }
 
 export default function ThemeButton({ isDarkMode, setIsDarkMode }: ThemeButtonProps) {
