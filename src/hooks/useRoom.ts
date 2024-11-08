@@ -1,4 +1,4 @@
-import { get, set, ref, push, onValue, onChildAdded, onChildChanged, off, Query, query, orderByChild, limitToLast, serverTimestamp } from 'firebase/database';
+import { get, set, ref, push, onValue, onChildAdded, onChildChanged, off, Query, query, orderByChild, limitToLast, serverTimestamp, equalTo } from 'firebase/database';
 import { firebaseDatabase as db } from '@/libs/firebase';
 import { Message, Participant } from '@/types';
 
@@ -16,17 +16,28 @@ export function useRoom() {
     };
 
     // Create or join a room
-    const createOrJoinRoom = async (userId: string, lang: string, roomId: string) => {
-        const roomRef = ref(db, `rooms/${roomId}`);
-        const snapshot = await get(roomRef);
-        if (!snapshot.exists()) {
-            await set(roomRef, {
-                name: roomId,
+    const createOrJoinRoom = async (username: string, lang: string, room: string) => {
+        const roomRef = ref(db, 'rooms');
+        const roomQuery = query(roomRef, orderByChild('name'), equalTo(room.toLowerCase()));
+        const snapshot = await get(roomQuery);
+    
+        let roomId: string;
+        
+        if (snapshot.exists()) {
+            roomId = Object.values<{ id: string }>(snapshot.val())[0].id;
+        } else {
+            const newRoomRef = push(roomRef);
+            roomId = newRoomRef.key as string;
+            await set(newRoomRef, {
+                id: roomId,
+                name: room.toLowerCase(),
                 participantsRef: `participants/${roomId}`,
                 messagesRef: `messages/${roomId}`
             });
         }
-        await addParticipant(userId, lang, roomId);
+    
+        await addParticipant(username, lang, roomId);
+        return roomId;
     };
 
     // Add a participant to a room

@@ -52,8 +52,8 @@ IMPORTANT:
 }
 
 export async function translateAction(
-    text: string, 
-    sourceLanguage: string, 
+    text: string,
+    sourceLanguage: string,
     targetLanguages: string[]
 ): Promise<Record<string, string>> {
     try {
@@ -87,7 +87,7 @@ export async function translateAction(
         }
 
         const translations = extractTranslations(response, sourceLanguage, text, uniqueTargets);
-        
+
         // Verify we only have requested languages
         const finalTranslations: Record<string, string> = {
             [sourceLanguage]: text
@@ -108,6 +108,27 @@ export async function translateAction(
             [sourceLanguage]: text
         };
     }
+}
+
+
+export async function transcriptAction(body: FormData) {
+    try {
+        const blob = body.get('blob') as Blob;
+        const language = body.get('language') as string;
+        const file = new File([blob], 'audio.wav', { type: 'audio/wav' });
+        const { text: transcription } = await client.audio.transcriptions.create({
+            file,
+            model: 'whisper-1',
+            temperature: 0.0,
+            ...(body.get('language') != 'auto' && { language }),
+        });
+        return transcription;
+    } catch (error) {
+        console.error('Translation error:', error);
+        return '';
+    }
+
+
 }
 
 function extractTranslations(
