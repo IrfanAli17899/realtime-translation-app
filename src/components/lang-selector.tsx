@@ -26,10 +26,10 @@ export default function LangSelector({
         <SelectValue placeholder="From Language" />
       </SelectTrigger>
       <SelectContent>
-        {Object.keys(languages).map((lang) => (
+        {Object.entries(languages).map(([code, lang]) => (
           <SelectItem
-            key={lang}
-            value={languages[lang as keyof typeof languages]}
+            key={code}
+            value={code}
           >
             {lang}
           </SelectItem>

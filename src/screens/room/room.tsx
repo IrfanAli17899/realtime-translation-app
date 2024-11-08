@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/button";
 import { Card, CardContent } from "@/components/card";
-import { Mic, MicOff, Send } from "lucide-react";
+import { Globe, Mic, MicOff, Send } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -18,8 +18,7 @@ import { useRoom } from "@/hooks/useRoom";
 import { transcriptAction, translateAction } from "@/actions/openai";
 import { useMicVAD, utils } from "@ricky0123/vad-react";
 import useApp from "@/hooks/useApp";
-import { filterLanguages } from "@/libs/utils";
-
+import { languages } from "@/config/languages";
 interface RoomScreenProps {
   roomId: string;
 }
@@ -154,7 +153,18 @@ export default function RoomScreen({ roomId }: RoomScreenProps) {
           <h1 className="text-2xl font-bold text-primary">
             TranslateAI - {room}
           </h1>
-          <ThemeButton isDarkMode={isDarkMode} setIsDarkMode={toggleDarkMode} />
+          <div className="flex gap-x-2 justify-center items-center">
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground`}
+            >
+              <Globe className="w-4 h-4 mr-1" />
+              {languages[myLanguage as keyof typeof languages]}
+            </span>
+            <ThemeButton
+              isDarkMode={isDarkMode}
+              setIsDarkMode={toggleDarkMode}
+            />
+          </div>
         </div>
       </header>
 
@@ -172,12 +182,12 @@ export default function RoomScreen({ roomId }: RoomScreenProps) {
                 }`}
               >
                 <div
-                  className={`flex gap-x-2 ${
+                  className={`max-w-[80%]  flex gap-x-2 ${
                     isCurrentUser ? "flex-row" : "flex-row-reverse"
                   }`}
                 >
                   <Card
-                    className={`max-w-[80%] ${
+                    className={`flex-1 ${
                       isCurrentUser
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
