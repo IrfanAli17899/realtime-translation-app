@@ -20,9 +20,9 @@ export function useRoom() {
         const roomRef = ref(db, 'rooms');
         const roomQuery = query(roomRef, orderByChild('name'), equalTo(room.toLowerCase()));
         const snapshot = await get(roomQuery);
-    
+
         let roomId: string;
-        
+
         if (snapshot.exists()) {
             roomId = Object.values<{ id: string }>(snapshot.val())[0].id;
         } else {
@@ -35,16 +35,26 @@ export function useRoom() {
                 messagesRef: `messages/${roomId}`
             });
         }
-    
+
         await addParticipant(username, lang, roomId);
         return roomId;
     };
 
     // Add a participant to a room
-    const addParticipant = (userId: string, lang: string, roomId: string): Promise<void> => {
+    const addParticipant = async (username: string, lang: string, roomId: string): Promise<void> => {
         const participantsRef = ref(db, `participants/${roomId}`);
+        const participantQuery = query(participantsRef, orderByChild('name'), equalTo(username));
+        const snapshot = await get(participantQuery);
+
+        const obj = { id: '', name: username, lang };
+
+        if (snapshot.exists()) {
+            const id = Object.keys(snapshot.val())[0];
+            return set(ref(db, `participants/${roomId}/${id}`), { ...obj, id });
+        }
+
         const newParticipantRef = push(participantsRef);
-        return set(newParticipantRef, { id: newParticipantRef.key, name: userId, lang });
+        return set(newParticipantRef, { ...obj, id: newParticipantRef.key, });
     };
 
     // General function to add a listener for a given event
@@ -94,11 +104,6 @@ export function useRoom() {
         const messagesRef = ref(db, `messages/${roomId}`);
         const queryRef = query(messagesRef, orderByChild('timestamp'));
         addListener(roomId, 'messages', callback, queryRef, 'value');
-
-        // get(queryRef).then(snapshot => {
-        //     const messagesData = snapshot.val();
-        //     callback(messagesData || {});
-        // });
     };
 
     const onMessageAdd = (roomId: string, callback: (message: Message) => void): void => {
@@ -109,7 +114,7 @@ export function useRoom() {
 
     const onMessageChange = (roomId: string, callback: (message: Message) => void): void => {
         const messagesRef = ref(db, `messages/${roomId}`);
-        const queryRef = query(messagesRef, orderByChild('timestamp'), limitToLast(1));
+        const queryRef = query(messagesRef, orderByChild('timestamp'));
         addListener(roomId, 'message_change', callback, queryRef, 'child_changed');
     };
 
