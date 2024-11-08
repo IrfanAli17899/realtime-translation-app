@@ -1,15 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/button";
 import { Card, CardContent } from "@/components/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/select";
 import { Mic, MicOff, Send } from "lucide-react";
 import {
   Tooltip,
@@ -19,9 +12,12 @@ import {
 } from "@/components/tooltip";
 import { Avatar, AvatarFallback } from "@/components/avatar";
 import ThemeButton from "@/components/theme-button";
-import { Message } from "@/types";
+import { Message, Participant } from "@/types";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { useRoom } from "@/hooks/useRoom";
+import { translateAction } from "@/actions/openai";
+import LangSelector from "@/components/lang-selector";
+import { filterLanguages } from "@/libs/utils";
 
 export interface RoomScreenProps {
   roomId: string;
@@ -30,36 +26,68 @@ export interface RoomScreenProps {
 export default function RoomScreen({ roomId }: RoomScreenProps) {
   const [isListening, setIsListening] = useState(false);
   const [inputText, setInputText] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [, setParticipants] = useState<string[]>([]);
-  const [fromLang, setFromLang] = useState("en");
-  const [toLang, setToLang] = useState("es");
+  const [messages, setMessages] = useState<Record<string, Message>>({});
+  const [participants, setParticipants] = useState<Record<string, Participant>>(
+    {}
+  );
+  const [myLanguage, setMyLanguage] = useState("en");
 
   const { isDarkMode, toggleDarkMode } = useDarkMode();
   const {
     getMessages,
-    onMessageAdd,
-    sendMessage,
     getParticipants,
+    sendMessage,
+    updateMessage,
     onParticipantAdd,
+    onMessageAdd,
+    onMessageChange,
+    cleanupListeners
   } = useRoom();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const messagesArray = useMemo(() => Object.values(messages), [messages]);
+  const participantsArray = useMemo(
+    () => Object.values(participants),
+    [participants]
+  );
+
+  const { roomLanguages, roomLanguagesCodes } = useMemo(() => {
+    const userNames: Record<string, string> = {};
+
+    const roomLanguagesCodes = participantsArray.map((participant) => {
+      userNames[participant.id] = participant.name;
+      return participant.lang;
+    });
+
+    const roomLanguages = filterLanguages(roomLanguagesCodes);
+
+    return { roomLanguages, roomLanguagesCodes, userNames };
+  }, [participantsArray]);
+
   useEffect(() => {
     if (roomId) {
       getMessages(roomId, (messages) => {
+        console.log("Messages", messages);
         setMessages(messages);
       });
       onMessageAdd(roomId, (message) => {
-        setMessages((prv) => [...prv, message]);
+        console.log("Message added", message);
+        setMessages((prv) => ({ ...prv, [message.id]: message }));
       });
-      getParticipants(roomId, (participants) => {
-        setParticipants(participants);
+      getParticipants(roomId, (participants) =>
+        setParticipants(participants)
+      );
+      onParticipantAdd(roomId, (participant) =>
+        setParticipants((prv) => ({ ...prv, [participant.id]: participant }))
+      );
+      onMessageChange(roomId, (message) => {
+        console.log("Message changed", message);
+        setMessages((prv) => ({ ...prv, [message.id]: message }));
       });
-      onParticipantAdd(roomId, (participant) => {
-        setParticipants((prv) => [...prv, participant]);
-      });
+      return () => {
+        cleanupListeners();
+      };
     }
   }, [roomId]);
 
@@ -71,20 +99,35 @@ export default function RoomScreen({ roomId }: RoomScreenProps) {
     setIsListening(!isListening);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (inputText.trim()) {
       const newMessage: Message = {
-        id: Date.now(),
-        text: inputText,
-        translated: "Hola, ¿cómo estás hoy?", // Simulated translation
-        fromLang,
-        toLang,
-        isUser: true,
+        id: "",
+        originalText: inputText,
+        translations: {},
+        sourceLanguage: myLanguage,
+        senderId: "U",
       };
-      sendMessage(roomId, newMessage);
+
       setInputText("");
+      const messageId = await sendMessage(roomId, newMessage);
+      newMessage.id = messageId;
+
+      const translations = await translateAction(
+        inputText,
+        myLanguage,
+        roomLanguagesCodes
+      );
+      console.log(translations);
+
+      updateMessage(roomId, messageId, {
+        ...newMessage,
+        translations,
+      });
     }
   };
+
+  const isCurrentUser = (senderId: string) => senderId === "U";
 
   return (
     <div
@@ -96,26 +139,12 @@ export default function RoomScreen({ roomId }: RoomScreenProps) {
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">TranslateAI</h1>
           <div className="flex space-x-2">
-            <Select value={fromLang} onValueChange={setFromLang}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="From Language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Spanish</SelectItem>
-                <SelectItem value="fr">French</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={toLang} onValueChange={setToLang}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="To Language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Spanish</SelectItem>
-                <SelectItem value="fr">French</SelectItem>
-              </SelectContent>
-            </Select>
+            <LangSelector
+              languages={roomLanguages}
+              className="w-[140px]"
+              value={myLanguage}
+              onChange={setMyLanguage}
+            />
             <ThemeButton
               isDarkMode={isDarkMode}
               setIsDarkMode={toggleDarkMode}
@@ -125,34 +154,38 @@ export default function RoomScreen({ roomId }: RoomScreenProps) {
       </header>
       <main className="flex-1 overflow-hidden container mx-auto p-4 flex flex-col">
         <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-          {messages.map((message) => (
+          {messagesArray.map((message) => (
             <div
               key={message.id}
               className={`flex ${
-                message.isUser ? "justify-end" : "justify-start"
+                isCurrentUser(message.senderId)
+                  ? "justify-end"
+                  : "justify-start"
               }`}
             >
-              {!message.isUser && (
+              {!isCurrentUser(message.senderId) && (
                 <Avatar className="mr-2">
                   <AvatarFallback>AI</AvatarFallback>
                 </Avatar>
               )}
               <Card
                 className={`max-w-[80%] ${
-                  message.isUser
+                  isCurrentUser(message.senderId)
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground"
                 }`}
               >
                 <CardContent className="p-3">
                   <p className="text-sm opacity-80 mb-1">
-                    {message.fromLang} → {message.toLang}
+                    {message.sourceLanguage} → {myLanguage}
                   </p>
-                  <p className="mb-2">{message.text}</p>
-                  <p className="text-sm italic">{message.translated}</p>
+                  <p className="mb-2">{message.originalText}</p>
+                  <p className="text-sm italic">
+                    {message.translations?.[myLanguage] || "Translating...."}
+                  </p>
                 </CardContent>
               </Card>
-              {message.isUser && (
+              {isCurrentUser(message.senderId) && (
                 <Avatar className="ml-2">
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>

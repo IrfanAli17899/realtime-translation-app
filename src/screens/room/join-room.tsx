@@ -12,18 +12,21 @@ import ThemeButton from "@/components/theme-button";
 import { useRoom } from "@/hooks/useRoom";
 import { useRouter } from "next/navigation";
 import { useDarkMode } from "@/hooks/useDarkMode";
+import LangSelector from "@/components/lang-selector";
+import { languages } from "@/config/languages";
 
 export default function JoinRoomScreen() {
   const [userName, setUserName] = useState("");
   const [roomName, setRoomName] = useState("");
+  const [myLanguage, setMyLanguage] = useState("en");
   const { isDarkMode, toggleDarkMode } = useDarkMode();
   const { createOrJoinRoom } = useRoom();
   const router = useRouter();
 
   const handleJoinRoom = async () => {
     try {
-      if (userName.trim() && roomName.trim()) {
-        await createOrJoinRoom(userName, roomName);
+      if (userName.trim() && roomName.trim() && myLanguage.trim()) {
+        await createOrJoinRoom(userName, myLanguage, roomName);
         router.push(`/room/${roomName}`);
       }
     } catch (error) {
@@ -53,6 +56,10 @@ export default function JoinRoomScreen() {
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lang">Your Language</Label>
+                <LangSelector languages={languages} value={myLanguage} onChange={setMyLanguage} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="roomname">Room Name</Label>
