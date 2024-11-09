@@ -1,8 +1,15 @@
 export interface Message {
-    id: number;
-    text: string;
-    translated: string;
-    fromLang: string;
-    toLang: string;
-    isUser: boolean;
+    id: string;
+    originalText: string;
+    translations: Translations;
+    sourceLanguage: string;
+    senderId: string;
 };
+
+export interface Participant {
+    id: string;
+    name: string;
+    lang: string;
+};
+
+export interface Translations extends Record<string, string> {};

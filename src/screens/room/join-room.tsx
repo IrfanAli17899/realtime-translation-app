@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/button";
 import { Card, CardContent } from "@/components/card";
 
@@ -12,19 +11,22 @@ import ThemeButton from "@/components/theme-button";
 import { useRoom } from "@/hooks/useRoom";
 import { useRouter } from "next/navigation";
 import { useDarkMode } from "@/hooks/useDarkMode";
+import LangSelector from "@/components/lang-selector";
+import { languages } from "@/config/languages";
+import useApp from "@/hooks/useApp";
 
 export default function JoinRoomScreen() {
-  const [userName, setUserName] = useState("");
-  const [roomName, setRoomName] = useState("");
+  const { username, language, room, setUsername, setLanguage, setRoom } =
+    useApp();
   const { isDarkMode, toggleDarkMode } = useDarkMode();
   const { createOrJoinRoom } = useRoom();
   const router = useRouter();
 
   const handleJoinRoom = async () => {
     try {
-      if (userName.trim() && roomName.trim()) {
-        await createOrJoinRoom(userName, roomName);
-        router.push(`/room/${roomName}`);
+      if (username.trim() && room.trim() && language.trim()) {
+        const roomId = await createOrJoinRoom(username, language, room);
+        router.push(`/room/${roomId}`);
       }
     } catch (error) {
       console.log("Error joining room", error);
@@ -50,8 +52,16 @@ export default function JoinRoomScreen() {
                 <Input
                   id="username"
                   placeholder="Enter your name"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lang">Your Language</Label>
+                <LangSelector
+                  languages={languages}
+                  value={language}
+                  onChange={setLanguage}
                 />
               </div>
               <div className="space-y-2">
@@ -59,8 +69,8 @@ export default function JoinRoomScreen() {
                 <Input
                   id="roomname"
                   placeholder="Enter room name to join"
-                  value={roomName}
-                  onChange={(e) => setRoomName(e.target.value)}
+                  value={room}
+                  onChange={(e) => setRoom(e.target.value)}
                 />
               </div>
               <div>
